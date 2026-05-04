@@ -119,3 +119,28 @@ const refreshAccessToken = async (incomingRefreshToken) => {
   return { user: user.toPublicProfile(), tokens };
 };
 
+/**
+ * Logout — invalidate refresh token
+ */
+const logout = async (userId) => {
+  await User.findByIdAndUpdate(
+    userId,
+    { $unset: { refreshToken: 1 } },
+    { new: true }
+  );
+};
+
+/**
+ * Get current authenticated user profile
+ */
+const getMe = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error("User not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  return user.toPublicProfile();
+};
+
+module.exports = { register, login, refreshAccessToken, logout, getMe };
