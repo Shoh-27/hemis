@@ -45,3 +45,29 @@ const login = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/auth/refresh
+ * Accepts refresh token from httpOnly cookie OR request body (fallback for non-browser clients)
+ */
+const refresh = async (req, res, next) => {
+  try {
+    const incomingToken =
+      req.cookies?.refreshToken || req.body?.refreshToken;
+
+    const { user, tokens } = await authService.refreshAccessToken(incomingToken);
+
+    res.cookie("refreshToken", tokens.refreshToken, getRefreshCookieOptions());
+
+    return res.status(200).json({
+      success: true,
+      message: "Token refreshed",
+      data: {
+        user,
+        accessToken: tokens.accessToken,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
