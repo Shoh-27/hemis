@@ -31,3 +31,39 @@ const register = async ({ name, email, password, role }) => {
   return { user: user.toPublicProfile(), tokens };
 };
 
+/**
+ * Login an existing user
+ */
+const login = async ({ email, password }) => {
+  // Explicitly select password (excluded by default)
+  const user = await User.findOne({ email }).select("+password +refreshToken");
+
+  if (!user) {
+    const err = new Error("Invalid email or password");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  if (!user.isActive) {
+    const err = new Error("Your account has been deactivated. Contact support.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const isPasswordValid = await user.comparePassword(password);
+  if (!isPasswordValid) {
+    const err = new Error("Invalid email or password");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  // Generate tokens
+  const tokens = generateTokenPair(user);
+
+  // Store hashed refresh token
+  user.refreshToken = await hashToken(tokens.refreshToken);
+  await user.save({ validateBeforeSave: false });
+
+  return { user: user.toPublicProfile(), tokens };
+};
+
