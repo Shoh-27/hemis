@@ -23,3 +23,25 @@ const register = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/auth/login
+ */
+const login = async (req, res, next) => {
+  try {
+    const { user, tokens } = await authService.login(req.body);
+
+    res.cookie("refreshToken", tokens.refreshToken, getRefreshCookieOptions());
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged in successfully",
+      data: {
+        user,
+        accessToken: tokens.accessToken,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
