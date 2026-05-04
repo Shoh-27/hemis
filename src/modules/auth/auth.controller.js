@@ -71,3 +71,37 @@ const refresh = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/auth/logout
+ */
+const logout = async (req, res, next) => {
+  try {
+    await authService.logout(req.user._id);
+
+    res.clearCookie("refreshToken", { path: "/api/auth" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/me
+ */
+const getMe = async (req, res, next) => {
+  try {
+    const user = await authService.getMe(req.user._id);
+    return res.status(200).json({
+      success: true,
+      data: { user },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, login, refresh, logout, getMe };
