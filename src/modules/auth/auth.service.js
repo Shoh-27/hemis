@@ -67,3 +67,55 @@ const login = async ({ email, password }) => {
   return { user: user.toPublicProfile(), tokens };
 };
 
+/**
+ * Refresh access token using a valid refresh token
+ */
+const refreshAccessToken = async (incomingRefreshToken) => {
+  if (!incomingRefreshToken) {
+    const err = new Error("Refresh token is required");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(incomingRefreshToken);
+  } catch {
+    const err = new Error("Invalid or expired refresh token");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const user = await User.findById(decoded.sub).select("+refreshToken");
+  if (!user || !user.refreshToken) {
+    const err = new Error("Session not found. Please log in again.");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  // Validate stored hashed token against the incoming one
+  const bcrypt = require("bcryptjs");
+  const isValid = await bcrypt.compare(incomingRefreshToken, user.refreshToken);
+  if (!isValid) {
+    // Possible token reuse — invalidate session immediately
+    user.refreshToken = undefined;
+    await user.save({ validateBeforeSave: false });
+    const err = new Error("Refresh token reuse detected. Please log in again.");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  if (!user.isActive) {
+    const err = new Error("Account is deactivated");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Issue new token pair (token rotation)
+  const tokens = generateTokenPair(user);
+  user.refreshToken = await hashToken(tokens.refreshToken);
+  await user.save({ validateBeforeSave: false });
+
+  return { user: user.toPublicProfile(), tokens };
+};
+
